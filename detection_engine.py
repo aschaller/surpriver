@@ -17,7 +17,7 @@ from scipy.stats import linregress
 from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
 from sklearn.ensemble import IsolationForest
-from data_loader import DataEngine
+from .data_loader import DataEngine
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -44,24 +44,41 @@ argParser.add_argument("--output_format", type=str, default = "CLI", help="What 
 argParser.add_argument("--stock_list", type=str, default = "stocks.txt", help="What is the name of the file in the stocks directory which contains the stocks you wish to predict.")
 argParser.add_argument("--data_source", type=str, default = "yahoo_finance", help="The name of the data engine to use.")
 
-args = argParser.parse_args()
-top_n = args.top_n
-min_volume = args.min_volume
-history_to_use = args.history_to_use
-is_load_from_dictionary = args.is_load_from_dictionary
-data_dictionary_path = args.data_dictionary_path
-is_save_dictionary = args.is_save_dictionary
-data_granularity_minutes = args.data_granularity_minutes
-is_test = args.is_test
-future_bars = args.future_bars
-volatility_filter = args.volatility_filter
-output_format = args.output_format.upper()
-stock_list = args.stock_list
-data_source = args.data_source
+# args = argParser.parse_args()
+# top_n = args.top_n
+# min_volume = args.min_volume
+# history_to_use = args.history_to_use
+# is_load_from_dictionary = args.is_load_from_dictionary
+# data_dictionary_path = args.data_dictionary_path
+# is_save_dictionary = args.is_save_dictionary
+# data_granularity_minutes = args.data_granularity_minutes
+# is_test = args.is_test
+# future_bars = args.future_bars
+# volatility_filter = args.volatility_filter
+# output_format = args.output_format.upper()
+# stock_list = args.stock_list
+# data_source = args.data_source
+
+
+
 
 """
 Sample run:
 python detection_engine.py --is_test 1 --future_bars 25 --top_n 25 --min_volume 5000 --data_granularity_minutes 60 --history_to_use 14 --is_load_from_dictionary 0 --data_dictionary_path 'dictionaries/feature_dict.npy' --is_save_dictionary 1 --output_format 'CLI'
+
+top_n = 10
+min_volume = 5000
+history_to_use = 14
+is_load_from_dictionary = 0
+data_dictionary_path = 'dictionaries/data_dict.npy'
+is_save_dictionary = 1
+data_granularity_minutes = 60
+is_test = 0
+future_bars = 0
+volatility_filter = 0.05
+output_format = 'CLI'
+stock_list = 'stocks.txt'
+data_source = 'yahoo_finance'
 """
 
 class ArgChecker:
@@ -81,7 +98,7 @@ class ArgChecker:
 		if is_test == 1 and future_bars < 2:
 			print("You want to test but the future bars are less than 2. That does not give us enough data to test the model properly. Please use a value larger than 2.\nExiting now...")
 			exit()
-		
+
 		if output_format not in ["CLI", "JSON"]:
 			print("Please choose CLI or JSON for the output format field. Default is CLI.")
 			exit()
@@ -93,7 +110,8 @@ class ArgChecker:
 			exit()
 
 class Surpriver:
-	def __init__(self):
+	def __init__(self, top_n, history_to_use, min_volume, is_load_from_dictionary, data_dictionary_path, is_save_dictionary,
+                 data_granularity_minutes, is_test, future_bars, volatility_filter, output_format, stock_list, data_source):
 		print("Surpriver has been initialized...")
 		self.TOP_PREDICTIONS_TO_PRINT = top_n
 		self.HISTORY_TO_USE = history_to_use
@@ -110,18 +128,18 @@ class Surpriver:
 		self.DATA_SOURCE = data_source
 
 		# Create data engine
-		self.dataEngine = DataEngine(self.HISTORY_TO_USE, self.DATA_GRANULARITY_MINUTES, 
+		self.dataEngine = DataEngine(self.HISTORY_TO_USE, self.DATA_GRANULARITY_MINUTES,
 							self.IS_SAVE_DICTIONARY, self.IS_LOAD_FROM_DICTIONARY, self.DATA_DICTIONARY_PATH,
 							self.MINIMUM_VOLUME,
 							self.IS_TEST, self.FUTURE_BARS_FOR_TESTING,
 							self.VOLATILITY_FILTER,
 							self.STOCK_LIST,
 							self.DATA_SOURCE)
-		
+
 
 	def is_nan(self, object):
 		"""
-		Checks if a value is null. 
+		Checks if a value is null.
 		"""
 		return object != object
 
@@ -155,7 +173,7 @@ class Surpriver:
 			volume_by_date_dictionary[date].append(volume[j])
 
 		for key in volume_by_date_dictionary:
-			volume_by_date_dictionary[key] = np.sum(volume_by_date_dictionary[key]) # taking average as we have multiple bars per day. 
+			volume_by_date_dictionary[key] = np.sum(volume_by_date_dictionary[key]) # taking average as we have multiple bars per day.
 
 		# Get all dates
 		all_dates = list(reversed(sorted(volume_by_date_dictionary.keys())))
@@ -167,7 +185,7 @@ class Surpriver:
 		average_vol_last_five_days = np.mean([volume_by_date_dictionary[date] for date in all_dates[1:6]])
 		average_vol_last_twenty_days = np.mean([volume_by_date_dictionary[date] for date in all_dates[1:20]])
 
-		
+
 		return latest_data_point, self.parse_large_values(today_volume), self.parse_large_values(average_vol_last_five_days), self.parse_large_values(average_vol_last_twenty_days)
 
 	def calculate_recent_volatility(self, historical_price):
@@ -197,12 +215,12 @@ class Surpriver:
 		else:
 			# Load data from dictionary
 			features, historical_price_info, future_prices, symbol_names = self.dataEngine.load_data_from_dictionary()
-		
+
 		# Find anomalous stocks using the Isolation Forest model. Read more about the model at -> https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.IsolationForest.html
 		detector = IsolationForest(n_estimators = 100, random_state = 0)
 		detector.fit(features)
 		predictions = detector.decision_function(features)
-		
+
 		# Print top predictions with some statistics
 		predictions_with_output_data = [[predictions[i], symbol_names[i], historical_price_info[i], future_prices[i]] for i in range(0, len(predictions))]
 		predictions_with_output_data = list(sorted(predictions_with_output_data))
@@ -226,9 +244,9 @@ class Surpriver:
 
 			if self.IS_TEST == 0:
 				# Not testing so just add/print the predictions
-				
+
 				if self.OUTPUT_FORMAT == "CLI":
-					print("Last Bar Time: %s\nSymbol: %s\nAnomaly Score: %.3f\nToday Volume: %s\nAverage Volume 5d: %s\nAverage Volume 20d: %s\nVolatility 5bars: %.3f\nVolatility 20bars: %.3f\n----------------------" % 
+					print("Last Bar Time: %s\nSymbol: %s\nAnomaly Score: %.3f\nToday Volume: %s\nAverage Volume 5d: %s\nAverage Volume 20d: %s\nVolatility 5bars: %.3f\nVolatility 20bars: %.3f\n----------------------" %
 																	(latest_date, symbol, prediction,
 																	today_volume, average_vol_last_five_days, average_vol_last_twenty_days,
 																	volatility_vol_last_five_days, volatility_vol_last_twenty_days))
@@ -248,7 +266,7 @@ class Surpriver:
 				future_abs_sum_percentage_change, _ = self.calculate_future_performance(future_price)
 
 				if self.OUTPUT_FORMAT == "CLI":
-					print("Last Bar Time: %s\nSymbol: %s\nAnomaly Score: %.3f\nToday Volume: %s\nAverage Volume 5d: %s\nAverage Volume 20d: %s\nVolatility 5bars: %.3f\nVolatility 20bars: %.3f\nFuture Absolute Sum Price Changes: %.2f\n----------------------" % 
+					print("Last Bar Time: %s\nSymbol: %s\nAnomaly Score: %.3f\nToday Volume: %s\nAverage Volume 5d: %s\nAverage Volume 20d: %s\nVolatility 5bars: %.3f\nVolatility 20bars: %.3f\nFuture Absolute Sum Price Changes: %.2f\n----------------------" %
 																	(latest_date, symbol, prediction,
 																	today_volume, average_vol_last_five_days, average_vol_last_twenty_days,
 																	volatility_vol_last_five_days, volatility_vol_last_twenty_days,
@@ -276,7 +294,7 @@ class Surpriver:
 		Function for storing results in a file
 		"""
 		today= dt.datetime.today().strftime('%Y-%m-%d')
-		
+
 		prefix = "results"
 
 		if self.IS_TEST != 0:
@@ -321,11 +339,11 @@ class Surpriver:
 		normal_future_volatilities = np.mean([future_volatilities[x] for x in range(0, len(future_volatilities)) if anomalous_score[x] >= 0])
 		anomalous_historical_volatilities = np.mean([historical_volatilities[x] for x in range(0, len(historical_volatilities)) if anomalous_score[x] < 0]) # Anything less than 0 is considered anomalous
 		normal_historical_volatilities = np.mean([historical_volatilities[x] for x in range(0, len(historical_volatilities)) if anomalous_score[x] >= 0])
-		
+
 		print("\n*************** Future Performance ***************")
 		print("Correlation between future absolute change vs anomalous score (lower is better, range = (-1, 1)): **%.2f**\nTotal absolute change in future for Anomalous Stocks: **%.3f**\nTotal absolute change in future for Normal Stocks: **%.3f**\nAverage future volatility of Anomalous Stocks: **%.3f**\nAverage future volatility of Normal Stocks: **%.3f**\nHistorical volatility for Anomalous Stocks: **%.3f**\nHistorical volatility for Normal Stocks: **%.3f**\n" % (
 								correlation,
-								anomalous_future_changes, normal_future_changes, 
+								anomalous_future_changes, normal_future_changes,
 								anomalous_future_volatilities, normal_future_volatilities,
 								anomalous_historical_volatilities, normal_historical_volatilities))
 
@@ -345,13 +363,3 @@ class Surpriver:
 		plt.tight_layout()
 		plt.grid()
 		plt.show()
-
-
-# Check arguments
-argumentChecker = ArgChecker()
-
-# Create surpriver instance
-supriver = Surpriver()
-
-# Generate predictions
-supriver.find_anomalies()
