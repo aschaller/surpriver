@@ -288,8 +288,7 @@ class Surpriver:
 
 		if self.IS_TEST == 1:
 			self.calculate_future_stats(predictions_with_output_data)
-
-        return results
+		return results
 
 	def store_results(self, results):
 		"""
