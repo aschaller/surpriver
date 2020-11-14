@@ -289,6 +289,8 @@ class Surpriver:
 		if self.IS_TEST == 1:
 			self.calculate_future_stats(predictions_with_output_data)
 
+        return results
+
 	def store_results(self, results):
 		"""
 		Function for storing results in a file
