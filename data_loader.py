@@ -36,13 +36,7 @@ class DataEngine:
 		self.DATA_SOURCE = data_source
 
 		# Stocks list
-		self.directory_path = str(os.path.dirname(os.path.abspath(__file__)))
-		self.stocks_file_path = self.directory_path + f"/stocks/{stocks_list}"
 		self.stocks_list = stocks_list
-
-		if not stocks_list:
-			# Load stock names in a list
-			self.load_stocks_from_file()
 
 		# Load Technical Indicator engine
 		self.taEngine = TAEngine(history_to_use = history_to_use)
