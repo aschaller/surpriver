@@ -19,8 +19,15 @@ from datetime import datetime, timedelta
 from .feature_generator import TAEngine
 import warnings
 from binance.client import Client
+import alpaca_trade_api as tradeapi
 
 warnings.filterwarnings("ignore")
+
+# Alpaca Parameters
+API_KEY = os.environ['ALPCA_PAPER_KEY_ID']
+API_SECRET = os.environ['ALPCA_PAPER_KEY_SECRET']
+APCA_API_BASE_URL = "https://paper-api.alpaca.markets"
+
 
 class DataEngine:
 	def __init__(self, history_to_use, data_granularity_minutes, is_save_dict, is_load_dict, dict_path, min_volume_filter, is_test, future_bars_for_testing, volatility_filter, stocks_list, data_source):
@@ -49,6 +56,9 @@ class DataEngine:
 
 		# Create an instance of the Binance Client with no api key and no secret (api key and secret not required for the functionality needed for this script)
 		self.binance_client = Client("","")
+
+		# Create an alpaca client
+		self.alpaca_api = tradeapi.REST(API_KEY, API_SECRET, APCA_API_BASE_URL, api_version='v2')
 
 	def load_stocks_from_file(self):
 		"""
@@ -102,13 +112,30 @@ class DataEngine:
 				stock_prices['Close'] = stock_prices['Close'].astype(float)
 				stock_prices['Volume'] = stock_prices['Volume'].astype(float)
 			# get stock prices from yahoo finance
-			else:
+			elif(self.DATA_SOURCE == 'yahoo_finance'):
 				stock_prices = yf.download(
 								tickers = symbol,
 								period = period,
 								interval = str(self.DATA_GRANULARITY_MINUTES) + "m",
 								auto_adjust = False,
 								progress=False)
+			elif(self.DATA_SOURCE == 'alpaca'):
+				interval = '15Min'		# DEBUG: hard-coded for now...
+
+				# Find period
+				# DEBUG: update me
+				if self.DATA_GRANULARITY_MINUTES == 1:
+					period = 30
+				else:
+					period = 207
+
+				stock_prices = self.alpaca_api.get_barset(symbol, interval, limit=period).df
+				stock_prices.columns = ['Open', 'High', 'Low', 'Close', 'Volume']
+				stock_prices.index.name = 'Datetime'
+			else:
+				raise Exception('Unrecognized data source')
+				sys.exit(0)
+
 			stock_prices = stock_prices.reset_index()
 			stock_prices = stock_prices[['Datetime','Open', 'High', 'Low', 'Close', 'Volume']]
 			data_length = len(stock_prices.values.tolist())
@@ -137,7 +164,8 @@ class DataEngine:
 
 			if len(stock_prices.values.tolist()) == 0:
 				return [], [], True
-		except:
+		except Exception as e:
+			print(str(e))
 			return [], [], True
 
 		return historical_prices, future_prices_list, False
