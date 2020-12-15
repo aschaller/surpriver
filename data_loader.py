@@ -237,7 +237,7 @@ class DataEngine:
 
 	def load_data_from_dictionary(self):
 		# Load data from dictionary
-		print("Loading data from dictionary")
+		print("Loading data from dictionary (%s)" % self.DICT_PATH)
 		dictionary_data = np.load(self.DICT_PATH, allow_pickle = True).item()
 
 		features = []

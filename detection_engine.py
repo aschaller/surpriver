@@ -208,7 +208,6 @@ class Surpriver:
 		"""
 		Main function that does everything
 		"""
-
 		# Gather data for all stocks
 		if self.IS_LOAD_FROM_DICTIONARY == 0:
 			features, historical_price_info, future_prices, symbol_names = self.dataEngine.collect_data_for_all_tickers()
@@ -235,7 +234,7 @@ class Surpriver:
 			# Check if future data is present or not
 			if self.IS_TEST == 1 and len(future_price) < 5:
 				print("No future data is present. Please make sure that you ran the prior command with is_test enabled or disable that command now. Exiting now...")
-				exit()
+				sys.exit(0)
 
 			latest_date, today_volume, average_vol_last_five_days, average_vol_last_twenty_days = self.calculate_volume_changes(historical_price)
 			volatility_vol_last_five_days, volatility_vol_last_twenty_days, _ = self.calculate_recent_volatility(historical_price)
