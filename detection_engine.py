@@ -222,7 +222,7 @@ class Surpriver:
 
 		# Print top predictions with some statistics
 		predictions_with_output_data = [[predictions[i], symbol_names[i], historical_price_info[i], future_prices[i]] for i in range(0, len(predictions))]
-		predictions_with_output_data = list(sorted(predictions_with_output_data))
+		predictions_with_output_data = list(sorted(predictions_with_output_data, key=lambda x: x[0]))
 
 		#Results object for storing results in JSON format
 		results = []
