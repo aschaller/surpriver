@@ -79,6 +79,25 @@ class DataEngine:
 		frequent_key = counter_keys[0]
 		return frequent_key
 
+	def get_interval(self):
+		"""
+		Takes an input interval and returns the correct
+		interval format string for the API given
+		"""
+		alpaca_intervals = {1:'1Min', 5:'5Min', 15:'15Min', 1440:'1D'}
+		yahoo_intervals = {1:'1m', 2:'2m', 5:'5m', 15:'15m', 30:'30m', 60:'60m', 90:'90m',
+							1440:'1d', 7200:'5d', 10080:'1wk', 43830:'1mo', 131490:'3mo'}
+
+		val = self.DATA_GRANULARITY_MINUTES
+		if self.DATA_SOURCE == 'yahoo_finance' and val in yahoo_intervals:
+			interval = yahoo_intervals[val]
+		elif self.DATA_SOURCE == 'alpaca' and val in alpaca_intervals:
+			interval = alpaca_intervals[val]
+		else:
+			raise NotImplementedError("Unrecognized interval type for %s" % self.DATA_SOURCE)
+
+		return interval
+
 	def get_data(self, symbol):
 		"""
 		Get stock data.
@@ -116,12 +135,10 @@ class DataEngine:
 				stock_prices = yf.download(
 								tickers = symbol,
 								period = period,
-								interval = str(self.DATA_GRANULARITY_MINUTES) + "m",
+								interval = self.get_interval(),
 								auto_adjust = False,
 								progress=False)
 			elif(self.DATA_SOURCE == 'alpaca'):
-				interval = '15Min'		# DEBUG: hard-coded for now...
-
 				# Find period
 				# DEBUG: update me
 				if self.DATA_GRANULARITY_MINUTES == 1:
@@ -129,6 +146,7 @@ class DataEngine:
 				else:
 					period = 207
 
+				interval = self.get_interval()
 				stock_prices = self.alpaca_api.get_barset(symbol, interval, limit=period).df
 				stock_prices.columns = ['Open', 'High', 'Low', 'Close', 'Volume']
 				stock_prices.index.name = 'Datetime'
@@ -164,6 +182,8 @@ class DataEngine:
 
 			if len(stock_prices.values.tolist()) == 0:
 				return [], [], True
+		except NotImplementedError:
+			sys.exit(1)
 		except Exception as e:
 			print(str(e))
 			return [], [], True
