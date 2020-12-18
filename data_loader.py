@@ -98,6 +98,39 @@ class DataEngine:
 
 		return interval
 
+	def get_start_end_dates(start=None, end=None, period=None):
+		"""
+		Returns a list containing start date, end date, and period in days.
+			[start_date, end_date, period]
+
+		string	start: 	Starting date of data period. 
+						Format: YYYY-MM-DD
+						Default is None
+		string 	end: 	Ending date of data period. 
+						Format: YYYY-MM-DD
+						Default is None
+		int 	period: Period of time in days
+		"""
+
+		if start is None and end is None and period is not None:
+			end_date = datetime.now().date()
+			start_date = end_date - timedelta(days=period)
+		elif start is not None and end is not None:
+			start_date = start
+			end_date = end
+			period = (datetime.strptime(end, "%Y-%M-%d").date() - datetime.strptime(start, "%Y-%M-%d").date()).days
+		elif start is None and end is not None:
+			end_date = datetime.strptime(end, "%Y-%M-%d").date()
+			start_date = end_date - timedelta(days=period)
+		elif end is None and start is not None:
+			start_date = datetime.strptime(start, "%Y-%M-%d").date()
+			end_date = start_date + timedelta(days=period)
+		else:
+			raise NotImplementedError("Invalid parameters")
+
+		return [str(start_date), str(end_date), period]
+
+
 	def get_data(self, symbol):
 		"""
 		Get stock data.
@@ -123,7 +156,7 @@ class DataEngine:
 					return [], [], True
 				# convert list to pandas dataframe
 				stock_prices = pd.DataFrame(stock_prices, columns=['Datetime', 'Open', 'High', 'Low', 'Close',
-                                             'Volume', 'close_time', 'quote_av', 'trades', 'tb_base_av', 'tb_quote_av', 'ignore'])
+											 'Volume', 'close_time', 'quote_av', 'trades', 'tb_base_av', 'tb_quote_av', 'ignore'])
 				stock_prices['Datetime'] = stock_prices['Datetime'].astype(float)
 				stock_prices['Open'] = stock_prices['Open'].astype(float)
 				stock_prices['High'] = stock_prices['High'].astype(float)
