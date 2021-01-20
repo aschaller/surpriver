@@ -110,10 +110,11 @@ class ArgChecker:
 			exit()
 
 class Surpriver:
-	def __init__(self, top_n, history_to_use, min_volume, is_load_from_dictionary, data_dictionary_path, is_save_dictionary,
+	def __init__(self, top_n, end_date, history_to_use, min_volume, is_load_from_dictionary, data_dictionary_path, is_save_dictionary,
                  data_granularity_minutes, is_test, future_bars, volatility_filter, output_format, stock_list, data_source):
 		print("Surpriver has been initialized...")
 		self.TOP_PREDICTIONS_TO_PRINT = top_n
+		self.END_DATE = end_date
 		self.HISTORY_TO_USE = history_to_use
 		self.MINIMUM_VOLUME = min_volume
 		self.IS_LOAD_FROM_DICTIONARY = is_load_from_dictionary
@@ -128,7 +129,7 @@ class Surpriver:
 		self.DATA_SOURCE = data_source
 
 		# Create data engine
-		self.dataEngine = DataEngine(self.HISTORY_TO_USE, self.DATA_GRANULARITY_MINUTES,
+		self.dataEngine = DataEngine(self.END_DATE, self.HISTORY_TO_USE, self.DATA_GRANULARITY_MINUTES,
 							self.IS_SAVE_DICTIONARY, self.IS_LOAD_FROM_DICTIONARY, self.DATA_DICTIONARY_PATH,
 							self.MINIMUM_VOLUME,
 							self.IS_TEST, self.FUTURE_BARS_FOR_TESTING,

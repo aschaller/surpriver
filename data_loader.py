@@ -30,8 +30,9 @@ APCA_API_BASE_URL = "https://paper-api.alpaca.markets"
 
 
 class DataEngine:
-	def __init__(self, history_to_use, data_granularity_minutes, is_save_dict, is_load_dict, dict_path, min_volume_filter, is_test, future_bars_for_testing, volatility_filter, stocks_list, data_source):
+	def __init__(self, end_date, history_to_use, data_granularity_minutes, is_save_dict, is_load_dict, dict_path, min_volume_filter, is_test, future_bars_for_testing, volatility_filter, stocks_list, data_source):
 		print("Data engine has been initialized...")
+		self.END_DATE = end_date
 		self.DATA_GRANULARITY_MINUTES = data_granularity_minutes
 		self.IS_SAVE_DICT = is_save_dict
 		self.IS_LOAD_DICT = is_load_dict
@@ -135,12 +136,19 @@ class DataEngine:
 		"""
 		Get stock data.
 		"""
-
 		# Find period
 		if self.DATA_GRANULARITY_MINUTES == 1:
-			period = "7d"
+			period = 7		# days
 		else:
-			period = "30d"
+			period = 30		# days
+
+		# Find start/end dates
+		if(self.END_DATE == 'today'):
+			end_date = datetime.now().date() + timedelta(days=1)
+			start_date = end_date - timedelta(days=period)
+		else:
+			end_date = datetime.strptime(self.END_DATE, "%Y-%M-%d").date()
+			start_date = end_date - timedelta(days=period)
 
 		try:
 			# get crytpo price from Binance
@@ -167,7 +175,8 @@ class DataEngine:
 			elif(self.DATA_SOURCE == 'yahoo_finance'):
 				stock_prices = yf.download(
 								tickers = symbol,
-								period = period,
+								start = start_date,
+								end = end_date,
 								interval = self.get_interval(),
 								auto_adjust = False,
 								progress=False)
@@ -175,12 +184,14 @@ class DataEngine:
 				# Find period
 				# DEBUG: update me
 				if self.DATA_GRANULARITY_MINUTES == 1:
-					period = 30
+					period = 100
 				else:
-					period = 207
+					period = 500
 
 				interval = self.get_interval()
-				stock_prices = self.alpaca_api.get_barset(symbol, interval, limit=period).df
+				stock_prices = self.alpaca_api.get_barset(symbol, interval, limit=period,
+				start=pd.Timestamp(start_date, tz='America/New_York').isoformat(),
+				end=pd.Timestamp(end_date, tz='America/New_York').isoformat()).df
 				stock_prices.columns = ['Open', 'High', 'Low', 'Close', 'Volume']
 				stock_prices.index.name = 'Datetime'
 			else:
