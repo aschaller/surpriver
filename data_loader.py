@@ -1,5 +1,6 @@
 # Basic libraries
 import os
+from alpaca_trade_api.rest import TimeFrame
 import ta
 import sys
 import json
@@ -22,11 +23,6 @@ from binance.client import Client
 import alpaca_trade_api as tradeapi
 
 warnings.filterwarnings("ignore")
-
-# Alpaca Parameters
-API_KEY = os.environ['ALPCA_PAPER_KEY_ID']
-API_SECRET = os.environ['ALPCA_PAPER_KEY_SECRET']
-APCA_API_BASE_URL = "https://paper-api.alpaca.markets"
 
 
 class DataEngine:
@@ -59,7 +55,7 @@ class DataEngine:
 		self.binance_client = Client("","")
 
 		# Create an alpaca client
-		self.alpaca_api = tradeapi.REST(API_KEY, API_SECRET, APCA_API_BASE_URL, api_version='v2')
+		self.alpaca_api = tradeapi.REST()
 
 	def load_stocks_from_file(self):
 		"""
