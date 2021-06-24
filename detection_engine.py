@@ -16,7 +16,8 @@ import datetime as dt
 from scipy.stats import linregress
 from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
-from sklearn.ensemble import IsolationForest
+from isotree import IsolationForest
+# from sklearn.ensemble import IsolationForest
 from .data_loader import DataEngine
 import warnings
 
@@ -110,12 +111,13 @@ class ArgChecker:
 			exit()
 
 class Surpriver:
-	def __init__(self, top_n, end_date, history_to_use, min_volume, is_load_from_dictionary, data_dictionary_path, is_save_dictionary,
-                 data_granularity_minutes, is_test, future_bars, volatility_filter, output_format, stock_list, data_source):
+	def __init__(self, top_n, end_date, history_to_use, period_to_use, min_volume, is_load_from_dictionary, data_dictionary_path, is_save_dictionary,
+                 data_granularity_minutes, is_test, future_bars, volatility_filter, output_format, stock_list, data_source, data_path):
 		print("Surpriver has been initialized...")
 		self.TOP_PREDICTIONS_TO_PRINT = top_n
 		self.END_DATE = end_date
 		self.HISTORY_TO_USE = history_to_use
+		self.PERIOD_TO_USE = period_to_use
 		self.MINIMUM_VOLUME = min_volume
 		self.IS_LOAD_FROM_DICTIONARY = is_load_from_dictionary
 		self.DATA_DICTIONARY_PATH = data_dictionary_path
@@ -127,15 +129,17 @@ class Surpriver:
 		self.OUTPUT_FORMAT = output_format
 		self.STOCK_LIST = stock_list
 		self.DATA_SOURCE = data_source
+		self.DATA_PATH = data_path
 
 		# Create data engine
-		self.dataEngine = DataEngine(self.END_DATE, self.HISTORY_TO_USE, self.DATA_GRANULARITY_MINUTES,
+		self.dataEngine = DataEngine(self.END_DATE, self.HISTORY_TO_USE, self.PERIOD_TO_USE, self.DATA_GRANULARITY_MINUTES,
 							self.IS_SAVE_DICTIONARY, self.IS_LOAD_FROM_DICTIONARY, self.DATA_DICTIONARY_PATH,
 							self.MINIMUM_VOLUME,
 							self.IS_TEST, self.FUTURE_BARS_FOR_TESTING,
 							self.VOLATILITY_FILTER,
 							self.STOCK_LIST,
-							self.DATA_SOURCE)
+							self.DATA_SOURCE,
+							self.DATA_PATH)
 
 
 	def is_nan(self, object):
@@ -218,8 +222,11 @@ class Surpriver:
 
 		# Find anomalous stocks using the Isolation Forest model. Read more about the model at -> https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.IsolationForest.html
 		detector = IsolationForest(n_estimators = 100, random_state = 0)
-		detector.fit(features)
-		predictions = detector.decision_function(features)
+		# detector.fit(features)
+		# predictions = detector.decision_function(features)
+		detector.fit(np.array(features))
+		predictions = -detector.decision_function(np.array(features))
+
 
 		# Print top predictions with some statistics
 		predictions_with_output_data = [[predictions[i], symbol_names[i], historical_price_info[i], future_prices[i]] for i in range(0, len(predictions))]

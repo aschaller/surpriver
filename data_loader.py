@@ -26,9 +26,10 @@ warnings.filterwarnings("ignore")
 
 
 class DataEngine:
-	def __init__(self, end_date, history_to_use, data_granularity_minutes, is_save_dict, is_load_dict, dict_path, min_volume_filter, is_test, future_bars_for_testing, volatility_filter, stocks_list, data_source):
+	def __init__(self, end_date, history_to_use, period_to_use, data_granularity_minutes, is_save_dict, is_load_dict, dict_path, min_volume_filter, is_test, future_bars_for_testing, volatility_filter, stocks_list, data_source, data_path):
 		print("Data engine has been initialized...")
 		self.END_DATE = end_date
+		self.PERIOD_TO_USE = period_to_use
 		self.DATA_GRANULARITY_MINUTES = data_granularity_minutes
 		self.IS_SAVE_DICT = is_save_dict
 		self.IS_LOAD_DICT = is_load_dict
@@ -38,6 +39,7 @@ class DataEngine:
 		self.IS_TEST = is_test
 		self.VOLATILITY_THRESHOLD = volatility_filter
 		self.DATA_SOURCE = data_source
+		self.DATA_PATH = data_path
 
 		# Stocks list
 		self.stocks_list = stocks_list
@@ -69,6 +71,12 @@ class DataEngine:
 		stocks_list = list(sorted(set(stocks_list)))
 		print("Total number of stocks: %d" % len(stocks_list))
 		self.stocks_list = stocks_list
+	
+	def load_stock_data_from_folder(self):
+		"""
+		Load stock data from a folder
+		"""
+		print("Loading all stock data from '%s'" % str(self.DATA_PATH))
 
 	def get_most_frequent_key(self, input_list):
 		counter = collections.Counter(input_list)
@@ -126,73 +134,53 @@ class DataEngine:
 			raise NotImplementedError("Invalid parameters")
 
 		return [str(start_date), str(end_date), period]
-
-
+	
+	def get_subrange_data(self, df, start, end, period='1min'):
+		'''
+		input:
+			- df (pd.DataFrame): dataframe with ['Datetime', 'Open', 'High', 'Low', 'Close', 'Volume'] columns
+			- start (np.datetime64): start of interval
+			- end (np.datetime64): end of interval
+		output:
+			- df (pd.DataFrame): subrange dataframe over the specified start and end interval, inclusive
+		'''
+		df = df.loc[df['Datetime'].between(start, end, inclusive=True)]
+		df = df.resample(period, on='Datetime').first()
+		df.reset_index(drop=True, inplace=True)
+		return df
+ 
 	def get_data(self, symbol):
 		"""
 		Get stock data.
 		"""
-		# Find period
-		if self.DATA_GRANULARITY_MINUTES == 1:
-			period = 7		# days
-		else:
-			period = 30		# days
-
 		# Find start/end dates
 		if(self.END_DATE == 'today'):
-			end_date = datetime.now().date() + timedelta(days=1)
-			start_date = end_date - timedelta(days=period)
+			end_date = np.datetime64(datetime.now())
+			start_date = end_date - np.timedelta64(self.PERIOD_TO_USE, 'D')		# daily, for now
 		else:
-			end_date = datetime.strptime(self.END_DATE, "%Y-%M-%d").date()
-			start_date = end_date - timedelta(days=period)
+			end_date = np.datetime64(self.END_DATE)
+			start_date = end_date - np.timedelta64(self.PERIOD_TO_USE, 'D')		# daily, for now
 
 		try:
-			# get crytpo price from Binance
-			if(self.DATA_SOURCE == 'binance'):
-				# Binance clients doesn't like 60m as an interval
-				if(self.DATA_GRANULARITY_MINUTES == 60):
-					interval = '1h'
-				else:
-					interval = str(self.DATA_GRANULARITY_MINUTES) + "m"
-				stock_prices = self.binance_client.get_klines(symbol=symbol, interval = interval)
-				# ensure that stock prices contains some data, otherwise the pandas operations below could fail
-				if len(stock_prices) == 0:
-					return [], [], True
-				# convert list to pandas dataframe
-				stock_prices = pd.DataFrame(stock_prices, columns=['Datetime', 'Open', 'High', 'Low', 'Close',
-											 'Volume', 'close_time', 'quote_av', 'trades', 'tb_base_av', 'tb_quote_av', 'ignore'])
-				stock_prices['Datetime'] = stock_prices['Datetime'].astype(float)
-				stock_prices['Open'] = stock_prices['Open'].astype(float)
-				stock_prices['High'] = stock_prices['High'].astype(float)
-				stock_prices['Low'] = stock_prices['Low'].astype(float)
-				stock_prices['Close'] = stock_prices['Close'].astype(float)
-				stock_prices['Volume'] = stock_prices['Volume'].astype(float)
-			# get stock prices from yahoo finance
-			elif(self.DATA_SOURCE == 'yahoo_finance'):
-				stock_prices = yf.download(
-								tickers = symbol,
-								start = start_date,
-								end = end_date,
-								interval = self.get_interval(),
-								auto_adjust = False,
-								progress=False)
-			elif(self.DATA_SOURCE == 'alpaca'):
-				# Find period
-				# DEBUG: update me
-				if self.DATA_GRANULARITY_MINUTES == 1:
-					period = 100
-				else:
-					period = 500
-
+			if(self.DATA_SOURCE == 'alpaca'):
 				interval = self.get_interval()
-				stock_prices = self.alpaca_api.get_barset(symbol, interval, limit=period,
+				stock_prices = self.alpaca_api.get_barset(symbol, interval, limit=self.PERIOD_TO_USE,
 				start=pd.Timestamp(start_date, tz='America/New_York').isoformat(),
 				end=pd.Timestamp(end_date, tz='America/New_York').isoformat()).df
 				stock_prices.columns = ['Open', 'High', 'Low', 'Close', 'Volume']
 				stock_prices.index.name = 'Datetime'
+			elif(self.DATA_SOURCE == 'local'):
+				import glob
+				files = glob.glob(self.DATA_PATH)
+				base_ext = os.path.splitext(self.DATA_PATH)[1].strip('*')
+				base_path = os.path.dirname(files[0])
+				stock_fn = symbol + base_ext
+
+				# Load in local file
+				df = np.load(base_path + '\\' + stock_fn, allow_pickle=True)
+				stock_prices = self.get_subrange_data(df, start_date, end_date, period='15min')
 			else:
 				raise Exception('Unrecognized data source')
-				sys.exit(0)
 
 			stock_prices = stock_prices.reset_index()
 			stock_prices = stock_prices[['Datetime','Open', 'High', 'Low', 'Close', 'Volume']]
@@ -206,8 +194,8 @@ class DataEngine:
 					return [], [], True
 
 			if self.IS_TEST == 1:
-				stock_prices_list = stock_prices.values.tolist()
-				stock_prices_list = stock_prices_list[1:]  # For some reason, yfinance gives some 0 values in the first index
+				# stock_prices_list = stock_prices.values.tolist()
+				stock_prices_list = stock_prices[1:]  # For some reason, yfinance gives some 0 values in the first index
 				future_prices_list = stock_prices_list[-(self.FUTURE_FOR_TESTING + 1):]
 				historical_prices = stock_prices_list[:-self.FUTURE_FOR_TESTING]
 				historical_prices = pd.DataFrame(historical_prices)
